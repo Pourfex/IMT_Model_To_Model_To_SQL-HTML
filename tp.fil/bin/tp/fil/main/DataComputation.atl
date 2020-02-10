@@ -1,0 +1,64 @@
+-- @nsURI Java=http://www.eclipse.org/MoDisco/Java/0.2.incubation/java
+-- @path Data=/tp.fil/src/tp/fil/resources/Data.ecore
+
+module DataComputation;
+create OUT : Data from IN : Java;
+
+--README
+--To run this you have to delete src/tp/javaproject.xmi
+--and clear eclipse console, error log console
+--kill the tab javaproject.xmi if any is open
+--the output should be at root
+--you must right click into the output and MAKE sure the checkox derived is OFF
+rule PackageToModel {
+	from 
+		s : Java!Package(
+			if s.package.oclIsUndefined() then false else
+			s.name = 'model' and
+			s.package.name = 'petstore' endif)
+	to
+		t : Data!Model(
+			name <- s.name, 
+			classes <- s.ownedElements->collect(c | thisModule.ClassToClass(c))
+		)
+}
+
+lazy rule ClassToClass{
+	from
+		s : Java!ClassDeclaration
+	to
+		t : Data!Class(
+			name <- s.name,
+			attributes <- s.bodyDeclarations
+				->select(a | a.oclIsTypeOf(Java!FieldDeclaration))
+				->collect(a | thisModule.FieldDeclarationToAttribute(a))
+		)
+}
+
+lazy rule FieldDeclarationToAttribute {
+	from 
+		s : Java!FieldDeclaration
+	to 
+		t : Data!Attribute(
+			name <- s.attributeName,
+			type <- thisModule.TypeAccessToType(s.type),
+			visibility <- s.modifier.visibility.toString()
+		)
+}
+
+lazy rule TypeAccessToType {
+	from
+		s : Java!TypeAccess
+	to
+		t : Data!Type(
+			name <- s.type.name
+		)
+}
+
+helper context Java!FieldDeclaration def : attributeName : String = 
+	let firstFragment : Java!VariableDeclarationFragment = self.fragments.first() in
+	if (firstFragment = OclUndefined) then
+		''
+	else
+		firstFragment.name
+endif;
