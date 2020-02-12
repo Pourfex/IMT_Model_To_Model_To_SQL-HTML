@@ -3,6 +3,7 @@ package tp.fil.main;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -23,6 +24,7 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xmi.impl.EcoreResourceFactoryImpl;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 
@@ -75,46 +77,65 @@ public class DataComputation {
 			EClass typeClassifier = (EClass) packageContent.getEClassifier("Type");
 			
 
-			TreeIterator<EObject> classIterator = dataModel.getAllContents();
-
-				while(classIterator.hasNext()) {
-					EObject classElement = classIterator.next();
-					
-					if (classElement.eClass().getName().equals("ClassDeclaration")) {
-						EObject newClassObj = packageContent.getEFactoryInstance().create(classClassifier);
+			TreeIterator<EObject> iterator = dataModel.getAllContents();
+			
+			List<Package> packages = iteratorToList(dataModel.getAllContents())
+					.stream().filter(Package.class::isInstance)
+					.map(obj -> (Package) obj)
+					.filter(obj -> obj.getName().equals("model"))
+					.collect(Collectors.toList());
+			
+			
+			Package packageItem = packages.get(0);
+			List<EObject> classes = new ArrayList<>();
+			
+			iteratorToList(packageItem.eAllContents())
+					.stream()
+					.filter(ClassDeclaration.class::isInstance)
+					.map(classObj -> {
+				
+				List<EObject> fields = new ArrayList<>();	
+				iteratorToList(classObj.eAllContents())
+						.stream().filter(FieldDeclaration.class::isInstance)
 						
-						// Set class name
-						newClassObj.eSet(classClassifier.getEStructuralFeature("name"), classElement.eGet(classElement.eClass().getEStructuralFeature("name")));
-						
-						
-						// Get class attributes
-						TreeIterator<EObject> attributeIterator = classElement.eAllContents();
-						while(attributeIterator.hasNext()) {
-							EObject attributeElement = attributeIterator.next();
+						.map(fieldObj -> {
+							FieldDeclaration newFieldObj = (FieldDeclaration) fieldObj;
 							
-							if(attributeElement.eClass().getName().equals("FieldDeclaration")) {
-								
-								EObject newAttributeObj = packageContent.getEFactoryInstance().create(attributeClassifier);
-								
-								EObject newTypeObj = packageContent.getEFactoryInstance().create(typeClassifier);
-								newTypeObj.eSet(typeClassifier.getEStructuralFeature("name"), typeClassifier.eGet(attributeElement.eClass().getEStructuralFeature("type")));
-								
-								newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("name"), attributeClassifier.eGet(attributeElement.eClass().getEStructuralFeature("name")));
-								newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("type"), newTypeObj);
-								newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("visibility"), attributeClassifier.eGet(attributeElement.eClass().getEStructuralFeature("visibility")));
-								
-								// Add field to class
-								List<EObject> attributes = (List<EObject>) classClassifier.eGet(classClassifier.eClass().getEStructuralFeature("attributes"));
-								attributes.add(newAttributeObj);
-								newClassObj.eSet(classClassifier.getEStructuralFeature("attributes"), attributes);
-							}
-						}
-						
-						dataModel.getContents().add(newClassObj);
-					}
-						
-				}
-						
+							EObject newAttributeObj = packageContent.getEFactoryInstance().create(attributeClassifier);
+							
+							
+							// Create type
+							EObject newTypeObj = packageContent.getEFactoryInstance().create(typeClassifier);
+							newTypeObj.eSet(typeClassifier.getEStructuralFeature("name"), newFieldObj.getType().getType().getName());
+							
+							boolean isRef = !newFieldObj.getType().getType().getName().matches("String|int|float|double");
+							newTypeObj.eSet(typeClassifier.getEStructuralFeature("isReference"), isRef);
+							
+							newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("name"), newFieldObj.getFragments().get(0).getName());
+							newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("type"), newTypeObj);
+							newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("visibility"), newFieldObj.getModifier().getVisibility().getLiteral());
+					
+							fields.add(newAttributeObj);
+							return fieldObj;
+						}).collect(Collectors.toList());
+				
+				ClassDeclaration cDeclar = (ClassDeclaration) classObj;
+				EObject newAttributeClass = packageContent.getEFactoryInstance().create(classClassifier);
+				newAttributeClass.eSet(classClassifier.getEStructuralFeature("name"), cDeclar.getName());
+				
+				newAttributeClass.eSet(classClassifier.getEStructuralFeature("attributes"), fields);
+				classes.add(newAttributeClass);
+				
+				return classObj;
+			}).collect(Collectors.toList());
+			
+			
+			EObject newModel = packageContent.getEFactoryInstance().create(modelClassifier);
+			newModel.eSet(modelClassifier.getEStructuralFeature("name"), packageItem.getName());
+			newModel.eSet(modelClassifier.getEStructuralFeature("classes"), classes);
+			
+			dataModel.getContents().add(newModel);
+				
 			dataModel.save(new FileOutputStream("PetStore_java_data.xmi"), null);
 			dataModel.unload();
 			dataMetamodel.unload();
@@ -122,6 +143,12 @@ public class DataComputation {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private static <T> List<T> iteratorToList(Iterator<T> iterator){
+		List<T> list = new ArrayList<>();
+		iterator.forEachRemaining(e -> list.add(e));
+		return list;
 	}
 
 }
