@@ -66,7 +66,7 @@ public class DataComputation {
 			EPackage.Registry.INSTANCE.
 				put("http://data", dataMetamodel.getContents().get(0));
 			
-			dataModel = resSet.createResource(URI.createFileURI("PetStore_java.xmi"));
+			dataModel = resSet.createResource(URI.createFileURI(args[0]));
 			dataModel.load(null);
 			
 			
@@ -134,9 +134,10 @@ public class DataComputation {
 			newModel.eSet(modelClassifier.getEStructuralFeature("name"), packageItem.getName());
 			newModel.eSet(modelClassifier.getEStructuralFeature("classes"), classes);
 			
+			dataModel.getContents().clear();
 			dataModel.getContents().add(newModel);
 				
-			dataModel.save(new FileOutputStream("PetStore_java_data.xmi"), null);
+			dataModel.save(new FileOutputStream("javaproject.xmi"), null);
 			dataModel.unload();
 			dataMetamodel.unload();
 			
