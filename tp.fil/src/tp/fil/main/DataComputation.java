@@ -61,67 +61,146 @@ public class DataComputation {
 			
 			dataMetamodel = resSet.createResource(URI.createFileURI("src/tp/fil/resources/Data.ecore"));
 			dataMetamodel.load(null);
-			EPackage.Registry.INSTANCE.
-				put("http://data", dataMetamodel.getContents().get(0));
+			EPackage.Registry.INSTANCE.put("http://data", 
+					dataMetamodel.getContents().get(0));
 			
-			dataModel = resSet.createResource(URI.createFileURI("PetStore_java.xmi"));
-			dataModel.load(null);
+			javaModel = resSet.createResource(URI.createFileURI("PetStore_java.xmi"));
+			javaModel.load(null);
 			
+			dataModel = resSet.createResource(URI.createFileURI("PetStore_data-java.xmi"));
 			
-			EPackage packageContent = (EPackage) dataMetamodel.getContents().get(0);
-			EClass modelClassifier = (EClass) packageContent.getEClassifier("Model");
-			EClass classClassifier = (EClass) packageContent.getEClassifier("Class");
-			EClass attributeClassifier = (EClass) packageContent.getEClassifier("Attribute");
-			EClass typeClassifier = (EClass) packageContent.getEClassifier("Type");
+			List<EObject> modelElements = iteratorToList(javaModel.getAllContents());
 			
-
-			TreeIterator<EObject> classIterator = dataModel.getAllContents();
-
-				while(classIterator.hasNext()) {
-					EObject classElement = classIterator.next();
-					
-					if (classElement.eClass().getName().equals("ClassDeclaration")) {
-						EObject newClassObj = packageContent.getEFactoryInstance().create(classClassifier);
-						
-						// Set class name
-						newClassObj.eSet(classClassifier.getEStructuralFeature("name"), classElement.eGet(classElement.eClass().getEStructuralFeature("name")));
-						
-						
-						// Get class attributes
-						TreeIterator<EObject> attributeIterator = classElement.eAllContents();
-						while(attributeIterator.hasNext()) {
-							EObject attributeElement = attributeIterator.next();
-							
-							if(attributeElement.eClass().getName().equals("FieldDeclaration")) {
-								
-								EObject newAttributeObj = packageContent.getEFactoryInstance().create(attributeClassifier);
-								
-								EObject newTypeObj = packageContent.getEFactoryInstance().create(typeClassifier);
-								newTypeObj.eSet(typeClassifier.getEStructuralFeature("name"), typeClassifier.eGet(attributeElement.eClass().getEStructuralFeature("type")));
-								
-								newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("name"), attributeClassifier.eGet(attributeElement.eClass().getEStructuralFeature("name")));
-								newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("type"), newTypeObj);
-								newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("visibility"), attributeClassifier.eGet(attributeElement.eClass().getEStructuralFeature("visibility")));
-								
-								// Add field to class
-								List<EObject> attributes = (List<EObject>) classClassifier.eGet(classClassifier.eClass().getEStructuralFeature("attributes"));
-								attributes.add(newAttributeObj);
-								newClassObj.eSet(classClassifier.getEStructuralFeature("attributes"), attributes);
-							}
-						}
-						
-						dataModel.getContents().add(newClassObj);
-					}
-						
-				}
-						
-			dataModel.save(new FileOutputStream("PetStore_java_data.xmi"), null);
+			List<ClassDeclaration> classeList =  DataComputation.<EObject, ClassDeclaration>convertTo(modelElements, ClassDeclaration.class) 
+					.filter(DataComputation::doesBelongToPetStorePackage)
+					.collect(Collectors.toList());
+			
+			List<String> existingClassesNames = classeList.stream()
+					.map(classe -> DataComputation.<String>getProperty(classe, "name"))
+					.collect(Collectors.toList());
+			
+			List<EObject> classes = classeList.stream()
+					.map(classe -> classModelToClassMetamodel(dataMetamodel, existingClassesNames, classe))
+					.collect(Collectors.toList());
+				
+			EObject model = createModel(dataMetamodel, classes);
+			
+			dataModel.getContents().add(model);
+			dataModel.save(null);
+			
+			javaModel.unload();
 			dataModel.unload();
-			dataMetamodel.unload();
 			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private static boolean doesBelongToPetStorePackage(ClassDeclaration classe) {
+		Package classPackage = classe.getPackage();
+		
+		return null != classPackage 
+				&& "model".equals(classPackage.getName()) 
+				&& "petstore".equals(getProperty(classPackage.getPackage(), "name"));
+	}
+	
+	// Property selectors in model
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private static <T, R> Stream<R> convertTo(List<T> objectList, Class desiredClass) {
+		return objectList.stream()
+				.filter(e -> desiredClass.isInstance(e))
+				.map(classe -> (R) classe);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private static <T> T getProperty(EObject object, String propertyName) {
+		return (T) object.eGet(object.eClass().getEStructuralFeature(propertyName));
+	}
+	
+	private static EPackage getPackage(Resource dataMetamodel) {
+		return (EPackage) dataMetamodel.getContents().get(0);
+	}
+
+	private static EObject getObject(Resource dataMetamodel, String classifierName, Map<String, Object> features) {
+		EPackage totalPackage = getPackage(dataMetamodel);
+		EClass typeEClass = (EClass) totalPackage.getEClassifier(classifierName);
+		EObject typeEObject = totalPackage.getEFactoryInstance().create(typeEClass);
+		
+		features.forEach((key, value) -> typeEObject.eSet(typeEClass.getEStructuralFeature(key), value));
+		
+		return typeEObject;
+	}
+	
+	// Create metamodel
+
+	@SuppressWarnings({ "serial" })
+	private static EObject createModel(Resource dataMetamodel, List<EObject> classes) {
+		return getObject(dataMetamodel, "Model", new HashMap<String, Object>(){{ 
+			put("classes", classes);
+		}});
+	}
+
+	@SuppressWarnings({ "serial" })
+	private static EObject createAttribute(Resource dataMetamodel, String className, EObject type, String visibility) {
+		return getObject(dataMetamodel, "Attribute", new HashMap<String, Object>() {{
+			put("name", className);
+			put("type", type);
+			put("visibility", visibility);
+		}});
+	}
+
+	@SuppressWarnings({ "serial" })
+	private static EObject createType(Resource dataMetamodel, String typeName, Boolean isReference) {
+		return getObject(dataMetamodel, "Type", new HashMap<String, Object>() {{
+			put("name", typeName);
+			put("isReference", isReference);
+		}});
+	}
+
+	@SuppressWarnings({ "serial" })
+	private static EObject createClass(Resource dataMetamodel, String className, List<EObject> attributes) {
+		return getObject(dataMetamodel, "Class", new HashMap<String, Object>() {{
+			put("name", className);
+			put("attributes", attributes);
+		}});
+	}
+	
+	// Model to metamodel converts
+	
+	private static EObject attributeModelToAttributeMetamodel(Resource dataMetamodel, List<String> existingClassesNames, FieldDeclaration fieldDeclaration) {
+		VariableDeclarationFragment currentFragment = DataComputation.<EList<VariableDeclarationFragment>>getProperty(fieldDeclaration, "fragments").get(0);
+		NamedElement attributeTypeNameElement = getProperty(getProperty(fieldDeclaration, "type"), "type");
+		String attributeTypeName = getProperty(attributeTypeNameElement, "name");
+		String attributeName = getProperty(currentFragment, "name");
+		VisibilityKind visibility = DataComputation.<VisibilityKind>getProperty(getProperty(fieldDeclaration, "modifier"), "visibility");
+		Boolean isReference = existingClassesNames.contains(attributeTypeName);
+		
+		EObject type = createType(dataMetamodel, attributeTypeName, isReference);
+		EObject attribute = createAttribute(dataMetamodel, attributeName, type, visibility.getLiteral());
+		
+		return attribute;
+	}
+
+	private static EObject classModelToClassMetamodel(Resource dataMetamodel, List<String> existingClassesNames, EObject classe) {
+		String className = getProperty(classe, "name");
+
+		List<BodyDeclaration> bodyDeclarationList = iteratorToList(DataComputation.<EList<BodyDeclaration>>getProperty(classe, "bodyDeclarations").iterator());
+		
+		List<EObject> attributes = DataComputation.<BodyDeclaration, FieldDeclaration>convertTo(bodyDeclarationList, FieldDeclaration.class)
+				.map(fieldDeclaration -> attributeModelToAttributeMetamodel(dataMetamodel, existingClassesNames, fieldDeclaration))
+				.collect(Collectors.toList());
+		
+		return createClass(dataMetamodel, className, attributes);
+	}
+	
+	// Helpers
+	
+	private static <T> List<T>iteratorToList(Iterator<T> iterator) {
+		List<T> list = new ArrayList<>();
+		iterator.forEachRemaining(e -> list.add(e));
+		
+		return list;
 	}
 
 }
