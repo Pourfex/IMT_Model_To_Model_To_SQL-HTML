@@ -4,6 +4,8 @@ CREATE TABLE SellerContactInfo (
 ,	lastName VARCHAR(255)
 ,	firstName VARCHAR(255)
 ,	email VARCHAR(255)
+         PRIMARY KEY contactInfoID, 
+       
 ); 
 
 CREATE TABLE Tag (
@@ -11,6 +13,9 @@ CREATE TABLE Tag (
 ,	items VARCHAR(255)
 ,	tag VARCHAR(255)
 ,	refCount INT
+         PRIMARY KEY tagID, 
+  CONSTRAINT FK_items FOREIGN KEY items REFERENCES TOTO(items), 
+     
 ); 
 
 CREATE TABLE Address (
@@ -23,6 +28,8 @@ CREATE TABLE Address (
 ,	latitude FLOAT
 ,	longitude FLOAT
 ,	COMMA VARCHAR(255)
+         PRIMARY KEY addressID, 
+                 
 ); 
 
 CREATE TABLE FileUploadResponse (
@@ -36,6 +43,9 @@ CREATE TABLE FileUploadResponse (
 ,	endDate VARCHAR(255)
 ,	uploadSize VARCHAR(255)
 ,	thumbnail VARCHAR(255)
+         PRIMARY KEY itemId, 
+  PRIMARY KEY productId, 
+                 
 ); 
 
 CREATE TABLE Category (
@@ -43,22 +53,30 @@ CREATE TABLE Category (
 ,	name VARCHAR(255)
 ,	description VARCHAR(255)
 ,	imageURL VARCHAR(255)
+         PRIMARY KEY categoryID, 
+       
 ); 
 
 CREATE TABLE RatingBean (
 	itemId VARCHAR(255)
 ,	grade INT
 ,	cf VARCHAR(255)
+         PRIMARY KEY itemId, 
+    CONSTRAINT FK_cf FOREIGN KEY cf REFERENCES TOTO(cf), 
+ 
 ); 
 
 CREATE TABLE PayPalBean (
 	postData VARCHAR(255)
+         CONSTRAINT FK_postData FOREIGN KEY postData REFERENCES TOTO(postData), 
+ 
 ); 
 
 CREATE TABLE ZipLocation (
 	zipCode INT
 ,	city VARCHAR(255)
 ,	state VARCHAR(255)
+              
 ); 
 
 CREATE TABLE Item (
@@ -68,13 +86,20 @@ CREATE TABLE Item (
 ,	description VARCHAR(255)
 ,	imageURL VARCHAR(255)
 ,	imageThumbURL VARCHAR(255)
-,	price DECIMAL
+,	price VARCHAR(255)
 ,	address VARCHAR(255)
 ,	contactInfo VARCHAR(255)
 ,	totalScore INT
 ,	numberOfVotes INT
 ,	disabled INT
 ,	tags VARCHAR(255)
+         PRIMARY KEY itemID, 
+  PRIMARY KEY productID, 
+          CONSTRAINT FK_price FOREIGN KEY price REFERENCES TOTO(price), 
+  CONSTRAINT FK_address FOREIGN KEY address REFERENCES TOTO(address), 
+  CONSTRAINT FK_contactInfo FOREIGN KEY contactInfo REFERENCES TOTO(contactInfo), 
+        CONSTRAINT FK_tags FOREIGN KEY tags REFERENCES TOTO(tags), 
+ 
 ); 
 
 CREATE TABLE Product (
@@ -83,11 +108,18 @@ CREATE TABLE Product (
 ,	name VARCHAR(255)
 ,	description VARCHAR(255)
 ,	imageURL VARCHAR(255)
+         PRIMARY KEY productID, 
+  PRIMARY KEY categoryID, 
+       
 ); 
 
 CREATE TABLE CatalogFacade (
 	emf VARCHAR(255)
 ,	utx VARCHAR(255)
-,	bDebug BIT
+,	bDebug VARCHAR(255)
+         CONSTRAINT FK_emf FOREIGN KEY emf REFERENCES TOTO(emf), 
+  CONSTRAINT FK_utx FOREIGN KEY utx REFERENCES TOTO(utx), 
+  CONSTRAINT FK_bDebug FOREIGN KEY bDebug REFERENCES TOTO(bDebug), 
+ 
 ); 
 

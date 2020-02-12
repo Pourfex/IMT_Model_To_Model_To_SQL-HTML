@@ -51,10 +51,19 @@ lazy rule TypeAccessToType {
 		s : Java!TypeAccess
 	to
 		t : Data!Type(
-			name <- s.type.name
+			name <- s.type.name,
+			isReference <- s.type.reference
 		)
 }
 
+helper context Java!Type def : reference : Boolean =
+	let typeref : String = self.name in
+	if(typeref = 'String' or typeref = 'int' or typeref = 'double' or typeref ='float') then
+		false
+	else
+		true
+	endif;
+	
 helper context Java!FieldDeclaration def : attributeName : String = 
 	let firstFragment : Java!VariableDeclarationFragment = self.fragments.first() in
 	if (firstFragment = OclUndefined) then

@@ -11,13 +11,16 @@ CREATE TABLE [class.name/] (
 		[for (attribute: Attribute | class.attributes) separator (',')]
 	[attribute.name + ' ' + mapTypes(attribute.type)/]
 		[/for]
+        [for (attribute: Attribute | class.attributes)] [mapKeys(attribute, class)/] [/for]
 ); ['\n'/]
 		[/for]
 [/file]
 [/template]
 
 [query public mapTypes(type : Type) : String = 
-	if type.name.equalsIgnoreCase('String') then 
+	if type.isReference then
+		'VARCHAR(255)'
+	else if type.name.equalsIgnoreCase('String') then 
 		'VARCHAR(255)'
 	else if type.name.equalsIgnoreCase('int') or type.name.equalsIgnoreCase('Integer') then 
 		'INT' 
@@ -35,5 +38,19 @@ CREATE TABLE [class.name/] (
 		'BIT'
 	else 
 		'VARCHAR(255)'
-	endif endif endif endif endif endif endif endif
+	endif endif endif endif endif endif endif endif endif
+/] 
+
+[query public mapKeys(attribute : Attribute, class : Class) : String = 
+	if attribute.name.contains('ID') then
+		'PRIMARY KEY ' + attribute.name +', \n'  
+	else if attribute.name.contains('Id') then
+		'PRIMARY KEY ' + attribute.name +', \n' 
+	else if attribute.name.contains('id') then
+		'PRIMARY KEY ' + attribute.name +', \n' 
+	else if attribute.type.isReference then
+		'CONSTRAINT FK_' + attribute.name + ' FOREIGN KEY ' + attribute.name + ' REFERENCES TOTO(' + attribute.name +'), \n' 
+	else
+		''
+	endif endif endif endif
 /] 
