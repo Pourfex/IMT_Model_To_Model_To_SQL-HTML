@@ -64,16 +64,15 @@ public class DataComputation {
 			EPackage.Registry.INSTANCE.
 				put("http://data", dataMetamodel.getContents().get(0));
 			
-			dataModel = resSet.createResource(URI.createFileURI("tp.fil_java.xmi"));
+			dataModel = resSet.createResource(URI.createFileURI("PetStore_java.xmi"));
 			dataModel.load(null);
 			
 			
 			EPackage packageContent = (EPackage) dataMetamodel.getContents().get(0);
+			EClass modelClassifier = (EClass) packageContent.getEClassifier("Model");
 			EClass classClassifier = (EClass) packageContent.getEClassifier("Class");
-			EClass fieldClassifier = (EClass) packageContent.getEClassifier("Field");
+			EClass attributeClassifier = (EClass) packageContent.getEClassifier("Attribute");
 			EClass typeClassifier = (EClass) packageContent.getEClassifier("Type");
-			
-			System.out.println(packageContent.getEClassifiers());
 			
 
 			TreeIterator<EObject> classIterator = dataModel.getAllContents();
@@ -94,21 +93,19 @@ public class DataComputation {
 							EObject attributeElement = attributeIterator.next();
 							
 							if(attributeElement.eClass().getName().equals("FieldDeclaration")) {
-								// Create field EObject newFieldObj = 
 								
-								EObject newFieldObj = packageContent.getEFactoryInstance().create(fieldClassifier);
+								EObject newAttributeObj = packageContent.getEFactoryInstance().create(attributeClassifier);
 								
 								EObject newTypeObj = packageContent.getEFactoryInstance().create(typeClassifier);
-								newTypeObj.eSet(typeClassifier.getEStructuralFeature("name"), attributeElement.eGet(attributeElement.eClass().getEStructuralFeature("type")));
+								newTypeObj.eSet(typeClassifier.getEStructuralFeature("name"), typeClassifier.eGet(attributeElement.eClass().getEStructuralFeature("type")));
 								
-								newFieldObj.eSet(fieldClassifier.getEStructuralFeature("name"), fieldClassifier.eGet(fieldClassifier.eClass().getEStructuralFeature("name")));
-								newFieldObj.eSet(fieldClassifier.getEStructuralFeature("type"), newTypeObj);
-								newFieldObj.eSet(fieldClassifier.getEStructuralFeature("visibility"), fieldClassifier.eGet(fieldClassifier.eClass().getEStructuralFeature("visibility")));
-								
+								newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("name"), attributeClassifier.eGet(attributeElement.eClass().getEStructuralFeature("name")));
+								newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("type"), newTypeObj);
+								newAttributeObj.eSet(attributeClassifier.getEStructuralFeature("visibility"), attributeClassifier.eGet(attributeElement.eClass().getEStructuralFeature("visibility")));
 								
 								// Add field to class
 								List<EObject> attributes = (List<EObject>) classClassifier.eGet(classClassifier.eClass().getEStructuralFeature("attributes"));
-								attributes.add(newFieldObj);
+								attributes.add(newAttributeObj);
 								newClassObj.eSet(classClassifier.getEStructuralFeature("attributes"), attributes);
 							}
 						}
@@ -118,8 +115,7 @@ public class DataComputation {
 						
 				}
 						
-
-			dataModel.save(null);
+			dataModel.save(new FileOutputStream("PetStore_java_data.xmi"), null);
 			dataModel.unload();
 			dataMetamodel.unload();
 			
