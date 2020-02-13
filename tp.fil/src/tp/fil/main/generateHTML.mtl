@@ -14,9 +14,14 @@
 	  <title>PetStore</title>
 	</head>
 	<body>
+		<img src="http://yuml.me/diagram/scruffy/class/
   	[for (class : Class | model.classes)]
-		<img src="http://yuml.me/diagram/scruffy/class/[getClassStr(class)/]" >
+		[getClassStr(class)/],
 	[/for]
+    [for (class : Class | model.classes)]
+		[getReferences(class)/],
+	[/for]
+		">
 	</body>
 	</html>
 
@@ -26,8 +31,35 @@
 [query public getClassStr(class : Class) : String =
 	'[' + class.name + '|' + class.attributes->collect(getAttributeStr()) + ']' /]
 
+[query public getReferences(class: Class) : String =
+	class.attributes->collect(getReferencesAttributes(class)) /]
+
+[query public getReferencesAttributes(attribute: Attribute, class : Class) : String =
+	if attribute.type.isReference then
+		'[' + class.name + ']' +  getNameCardinality() +'],' 
+	else
+		''
+	endif
+/]
+
 [query public getAttributeStr(attribute: Attribute) : String =
-	getVisibilityStr(attribute.visibility) + attribute.name + ': ' + attribute.type.name + ';' /]
+	getVisibilityStr(attribute.visibility) + attribute.name + ': ' + getName() + ';' /]
+
+[query public getNameCardinality(attribute: Attribute) : String =
+	if attribute.type.name.contains('.') then 
+		'0-0..*['+attribute.type.name.substring(attribute.type.name.lastIndexOf('.')).replace('>','').replace('.','')
+	else
+		'0-1['+ attribute.type.name
+	endif
+ /]
+
+[query public getName(attribute: Attribute) : String =
+	if attribute.type.name.contains('.') then 
+		attribute.type.name.substring(attribute.type.name.lastIndexOf('.')).replace('>','').replace('.','')
+	else
+		attribute.type.name
+	endif
+ /]
 
 [query public getVisibilityStr(visibility : String) : String = 
 	if visibility.equalsIgnoreCase('private') then 
